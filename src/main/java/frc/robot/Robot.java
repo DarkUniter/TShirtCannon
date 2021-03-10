@@ -43,10 +43,22 @@ public class Robot extends TimedRobot {
   private final Xbox mOperatorController = new Xbox(1);
   private final OverridesController mOverridesController = OverridesController.getInstance();
 
+  //Controller Vibrating method
+  public void vibrateDriveController() {
+    double counter = 0;
+    mDriveController.rumble(.2);
+    if(counter == 10) {
+      mDriveController.rumble(0);
+      counter = 0;
+    }
+    else {
+      ++counter;
+    }
+  }
+
 
   //Subsystems
   private final SubsystemManager mSubsystemManager = SubsystemManager.getInstance();
-
   private final Cannon mCannon = Cannon.getInstance();
   private final Superstructure mSuperstructure = Superstructure.getInstance();
 
@@ -224,19 +236,23 @@ public class Robot extends TimedRobot {
 
   public void driverControl() {
     if(mDriveController.dpadLeft.wasActivated()) {
-      mCannon.conformToState(CannonState.TURNINGCOUNTERCLOCKWISE);
+      mCannon.conformToState(CannonState.COUNTERCLOCKWISE);
     }
 
     if(mDriveController.dpadRight.wasActivated()) {
-      mCannon.conformToState(CannonState.TURNINGCLOCKWISE);
+      mCannon.conformToState(CannonState.CLOCKWISE);
     }
 
     if(mDriveController.rightTrigger.isBeingPressed()) {
-      mCannon.setState(CannonState.SHOOTING);
+      mCannon.conformToState(CannonState.SHOOTING);
     }
     
     if(mDriveController.rightTrigger.wasActivated()) {
       mCannon.conformToState(CannonState.OFF);
+    }
+
+    if(mDriveController.aButton.wasActivated()) {
+      mCannon.conformToState(CannonState.AUTOENABLED);
     }
   }
 

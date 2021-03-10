@@ -1,5 +1,8 @@
 package frc.robot.subsystems;
 
+import java.lang.reflect.Array;
+import java.util.List;
+
 import com.ctre.phoenix.motorcontrol.ControlMode;
 
 import edu.wpi.first.wpilibj.AnalogInput;
@@ -34,7 +37,10 @@ public class Cannon extends Subsystem {
     
 
     //random variables
-    private double chamberNumber = 1; 
+    private double mChamberNumber = 1;
+    private boolean[] mChambers = { true, true, true, true, true, true, true, true };
+    private double mAllChambersEmpty = 0;
+    private double mShooterSolenoidDelay = 0;
 
 
     //control states
@@ -64,38 +70,77 @@ public class Cannon extends Subsystem {
 
             @Override
             public void onStart(double timestamp) {
-                double shirtsShot = 0;
-                double rawTicks = 0;
                 mTurnEncoder.reset();
             }
 
             @Override
             public void onLoop(double timestamp) {
-                if(mCurrentState == CannonState.TURNINGCLOCKWISE) {
-                    double ticksNeeded = (chamberNumber + 1);
+                if(mCurrentState == CannonState.CLOCKWISE) {
+                    double ticksNeeded = (++mChamberNumber);
                     ticksNeeded = ticksNeeded * Constants.TICKS_PER_CHAMBER;
                     double rawTicks = mTurnEncoder.getRaw();
                     if(rawTicks >= ticksNeeded) {
                         conformToState(CannonState.OFF);
+                        ++mChamberNumber;
                     }
                 }
-                if(mCurrentState == CannonState.TURNINGCOUNTERCLOCKWISE) {
-                    double ticksNeeded = (chamberNumber - 1);
+                if(mCurrentState == CannonState.COUNTERCLOCKWISE) {
+                    double ticksNeeded = (--mChamberNumber);
                     ticksNeeded = ticksNeeded * Constants.TICKS_PER_CHAMBER;
                     double rawTicks = mTurnEncoder.getRaw();
                     if(rawTicks <= ticksNeeded) {
                         conformToState(CannonState.OFF);
+                        --mChamberNumber;
                     }
                 }
                 if(mCurrentState == CannonState.SHOOTING) {
                     if(mDistanceSensor.getValue() <= 150) {
                         if(mPressureSwitch.get() == false) {
-                            conformToState(CannonState.OFF);
                         }
                         else {
-                            conformToState(CannonState.SHOOTING);
+                            setSolenoid(true);
+                            mChambers[(int) mChamberNumber] = false;
+                            ++mAllChambersEmpty;
                         }
                     }
+                }
+                if(mCurrentState == CannonState.AUTOENABLED) {
+                    if(mAllChambersEmpty < 8) {
+                        if(mChambers[(int) mChamberNumber] == true) {
+                            if(mDistanceSensor.getValue() <= 150) {
+                                if(mPressureSwitch.get() == false) {
+                                }
+                                else {
+                                    setSolenoid(true);
+                                    mChambers[(int) mChamberNumber] = false;
+                                    ++mAllChambersEmpty;
+                                }
+                            }
+                        }
+                        else {
+                            if(mShooterSolenoid.get() == true) {
+                                if(mShooterSolenoidDelay == 10){
+                                    setSolenoid(false);
+                                    mShooterSolenoidDelay = 0;
+                                }
+                                else{
+                                    ++mShooterSolenoidDelay;
+                                }
+                            }
+                            setTurnSpeed(CannonState.CLOCKWISE.turningSpeed);
+                            double ticksNeeded = (++mChamberNumber);
+                            ticksNeeded = ticksNeeded * Constants.TICKS_PER_CHAMBER;
+                            double rawTicks = mTurnEncoder.getRaw();
+                            if(rawTicks >= ticksNeeded) {
+                                setTurnSpeed(0.0);
+                                ++mChamberNumber;
+                            }
+                        }
+                    }
+                    else {
+                        conformToState(CannonState.OFF);
+                    }
+                    
                 }
             }
 
@@ -112,9 +157,10 @@ public class Cannon extends Subsystem {
 
     public enum CannonState { 
         OFF(false, 0.0),
-        TURNINGCOUNTERCLOCKWISE(false, -0.2),
-        TURNINGCLOCKWISE(false, 0.2),
-        SHOOTING(true, 0.0);
+        COUNTERCLOCKWISE(false, -0.2),
+        CLOCKWISE(false, 0.2),
+        SHOOTING(false, 0.0),
+        AUTOENABLED(false, 0.0);
 
         public boolean isShooting;
         public double turningSpeed;
